@@ -1,0 +1,61 @@
+{
+  "entities": {
+    "Character": {
+      "title": "Character",
+      "description": "A player's RPG character data.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string", "description": "The Firebase Auth UID of the owner." },
+        "name": { "type": "string" },
+        "class": { "type": "string", "enum": ["Warrior", "Mage", "Rogue"] },
+        "level": { "type": "integer" },
+        "exp": { "type": "integer" },
+        "nextLevelExp": { "type": "integer" },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "hp": { "type": "integer" },
+            "maxHp": { "type": "integer" },
+            "mp": { "type": "integer" },
+            "maxMp": { "type": "integer" },
+            "attack": { "type": "integer" },
+            "defense": { "type": "integer" },
+            "speed": { "type": "integer" }
+          }
+        },
+        "inventory": { "type": "array", "items": { "type": "string" } },
+        "skills": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "mpCost": { "type": "integer" },
+              "damageMultiplier": { "type": "number" },
+              "type": { "type": "string", "enum": ["attack", "heal", "buff"] }
+            }
+          } 
+        },
+        "gold": { "type": "integer" },
+        "isDead": { "type": "boolean" },
+        "score": { "type": "integer" },
+        "killedBy": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "name", "class", "level", "exp", "nextLevelExp", "stats", "gold"]
+    }
+  },
+  "firestore": {
+    "/characters/{characterId}": {
+      "schema": "Character",
+      "description": "Collection of player characters."
+    },
+    "graveyard": {
+      "schema": "Character",
+      "description": "Fallen heroes memorial"
+    }
+  }
+}

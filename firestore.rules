@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: characters
+    // Document ID: {characterId}
+    // Fields:
+    //   - id: string (required) - unique character id
+    //   - uid: string (required) - owner's firebase auth uid
+    //   - name: string (required, 1-30 chars)
+    //   - class: string (required, Warrior|Mage|Rogue)
+    //   - level: number (required, positive)
+    //   - exp: number (required, non-negative)
+    //   - nextLevelExp: number (required, positive)
+    //   - stats: map (required)
+    //     - hp, maxHp, mp, maxMp, attack, defense, speed: number
+    //   - gold: number (required, non-negative)
+    //   - updatedAt: timestamp (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isDocOwner() {
+      return isOwner(resource.data.uid);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidCharacter(data) {
+      return hasRequiredFields(['id', 'uid', 'name', 'class', 'level', 'exp', 'nextLevelExp', 'stats', 'gold', 'skills', 'isDead', 'score']) &&
+             data.id is string &&
+             data.uid is string &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 30 &&
+             data.class in ['Warrior', 'Mage', 'Rogue'] &&
+             data.level is number && data.level >= 1 &&
+             data.exp is number && data.exp >= 0 &&
+             data.nextLevelExp is number && data.nextLevelExp > 0 &&
+             data.gold is number && data.gold >= 0 &&
+             data.isDead is bool &&
+             data.score is number &&
+             (!('killedBy' in data) || data.killedBy is string) &&
+             (!('inventory' in data) || data.inventory is list) &&
+             data.skills is list &&
+             data.stats is map &&
+             data.stats.hp is number &&
+             data.stats.maxHp is number &&
+             data.stats.mp is number &&
+             data.stats.maxMp is number &&
+             data.stats.attack is number &&
+             data.stats.defense is number &&
+             data.stats.speed is number;
+    }
+
+    match /characters/{characterId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                      isValidCharacter(request.resource.data) && 
+                      isOwner(request.resource.data.uid) &&
+                      characterId == request.auth.uid;
+      allow update: if isOwner(characterId) && 
+                      isValidCharacter(request.resource.data) && 
+                      request.resource.data.uid == resource.data.uid;
+      allow delete: if isOwner(characterId);
+    }
+    match /graveyard/{characterId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                      isValidCharacter(request.resource.data) &&
+                      request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false; // Graveyard is immutable
+    }
+  }
+}
