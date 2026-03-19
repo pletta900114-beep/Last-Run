@@ -14,10 +14,11 @@ function cn(...inputs: ClassValue[]) {
 }
 
 interface CharacterCreationProps {
+  metaCurrency: number;
   onComplete: (character: any) => void;
 }
 
-export default function CharacterCreation({ onComplete }: CharacterCreationProps) {
+export default function CharacterCreation({ metaCurrency, onComplete }: CharacterCreationProps) {
   const { t } = useLanguage();
   const [name, setName] = useState('');
   const [selectedClass, setSelectedClass] = useState<CharacterClass>('Warrior');
@@ -47,7 +48,7 @@ export default function CharacterCreation({ onComplete }: CharacterCreationProps
         return;
       }
 
-      const character = createCharacter(name.trim(), selectedClass, auth.currentUser.uid);
+      const character = createCharacter(name.trim(), selectedClass, auth.currentUser.uid, metaCurrency);
       onComplete(character);
     } catch (err) {
       console.error('Error checking name:', err);

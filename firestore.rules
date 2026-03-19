@@ -49,7 +49,7 @@ service cloud.firestore {
     // Domain Validators
     // ===============================================================
     function isValidCharacter(data) {
-      return hasRequiredFields(['id', 'uid', 'name', 'class', 'level', 'exp', 'nextLevelExp', 'stats', 'gold', 'skills', 'isDead', 'score']) &&
+      return hasRequiredFields(['id', 'uid', 'name', 'class', 'level', 'exp', 'nextLevelExp', 'stats', 'gold', 'skills', 'isDead', 'score', 'playData']) &&
              data.id is string &&
              data.uid is string &&
              data.name is string && data.name.size() >= 1 && data.name.size() <= 30 &&
@@ -70,7 +70,16 @@ service cloud.firestore {
              data.stats.maxMp is number &&
              data.stats.attack is number &&
              data.stats.defense is number &&
-             data.stats.speed is number;
+             data.stats.speed is number &&
+             data.playData is map &&
+             data.playData.totalDamageTaken is number &&
+             data.playData.totalDamageDealt is number &&
+             data.playData.riskySkillUsage is number &&
+             data.playData.chanceSkillUsage is number &&
+             data.playData.itemUsage is number &&
+             data.playData.battlesWon is number &&
+             data.playData.totalTurns is number &&
+             data.playData.bossesDefeated is number;
     }
 
     match /characters/{characterId} {
@@ -84,12 +93,26 @@ service cloud.firestore {
                       request.resource.data.uid == resource.data.uid;
       allow delete: if isOwner(characterId);
     }
+
     match /graveyard/{characterId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && 
                       isValidCharacter(request.resource.data) &&
                       request.resource.data.uid == request.auth.uid;
       allow update, delete: if false; // Graveyard is immutable
+    }
+
+    match /history/{historyId} {
+      allow read: if isAuthenticated() && historyId.startsWith(request.auth.uid);
+      allow create: if isAuthenticated() && historyId.startsWith(request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && 
+                             hasOnlyAllowedFields(['metaCurrency', 'lastRunAt']) &&
+                             request.resource.data.metaCurrency is number;
     }
   }
 }

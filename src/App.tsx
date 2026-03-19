@@ -5,13 +5,14 @@ import CharacterCreation from './components/CharacterCreation';
 import Shop from './components/Shop';
 import Leaderboard from './components/Leaderboard';
 import Ending from './components/Ending';
-import { Character, Monster, Skill, Item, Stats } from './types/game';
+import MapSelection from './components/MapSelection';
+import { Character, Monster, Skill, Item, Stats, RunResult } from './types/game';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { doc, setDoc, onSnapshot, getDocFromServer, deleteDoc } from 'firebase/firestore';
 import { LogIn, Sparkles, Skull, Trophy, Globe } from 'lucide-react';
-import { SKILLS, determineEnding } from './services/gameLogic';
+import { SKILLS, determineEnding, DUNGEONS, generateMonster, buildRunResult, selectAbandonMessage } from './services/gameLogic';
 import { useLanguage } from './contexts/LanguageContext';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -20,7 +21,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-type Screen = 'lobby' | 'battle' | 'creation' | 'shop' | 'loading' | 'login' | 'leaderboard' | 'gameover' | 'ending';
+type Screen = 'lobby' | 'battle' | 'creation' | 'shop' | 'loading' | 'login' | 'leaderboard' | 'gameover' | 'ending' | 'map-selection';
 
 export default function App() {
   const { t, language, setLanguage } = useLanguage();
@@ -32,12 +33,21 @@ export default function App() {
   const [newSkill, setNewSkill] = useState<Skill | null>(null);
   const [endingType, setEndingType] = useState<'normal' | 'berserker' | 'survivor' | 'gambler' | 'tactician'>('normal');
 
+  const [metaCurrency, setMetaCurrency] = useState<number>(0);
+
   // Auth listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (!user) {
         setScreen('login');
+      } else {
+        // Fetch meta currency
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDocFromServer(userRef);
+        if (userSnap.exists()) {
+          setMetaCurrency(userSnap.data().metaCurrency || 0);
+        }
       }
     });
     return () => unsubscribe();
@@ -109,9 +119,79 @@ export default function App() {
     setScreen('lobby');
   };
 
-  const handleStartBattle = (monster: Monster) => {
+  const handleStartBattle = (dungeonId: string) => {
+    if (!character) return;
+    const dungeon = DUNGEONS.find(d => d.id === dungeonId);
+    if (!dungeon) return;
+
+    const isBoss = character.currentFloor % 5 === 0;
+    const monster = generateMonster(dungeonId, character.currentFloor, isBoss);
     setCurrentMonster(monster);
     setScreen('battle');
+  };
+
+  const handleEndRun = async (resultType: 'abandoned' | 'dead' | 'cleared', message: string) => {
+    if (!character || !user) return;
+
+    const result = buildRunResult(character, resultType, message);
+    const earnedMeta = Math.floor(character.score / 10);
+    
+    // 1. Save to graveyard/history
+    try {
+      const historyRef = doc(db, 'history', `${user.uid}_${Date.now()}`);
+      await setDoc(historyRef, result);
+      
+      if (resultType === 'dead') {
+        const graveyardRef = doc(db, 'graveyard', `${user.uid}_${Date.now()}`);
+        await setDoc(graveyardRef, character);
+      }
+
+      // 2. Persist Meta Currency to User Profile
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDocFromServer(userRef);
+      const currentMeta = userSnap.exists() ? (userSnap.data().metaCurrency || 0) : 0;
+      await setDoc(userRef, { 
+        metaCurrency: currentMeta + earnedMeta,
+        lastRunAt: Date.now()
+      }, { merge: true });
+
+    } catch (error) {
+      console.error('Failed to save run result or update meta:', error);
+    }
+
+    // 3. Prepare Game Over State
+    const finalCharState: Character = {
+      ...character,
+      metaCurrency: (character.metaCurrency || 0) + earnedMeta,
+      isDead: resultType === 'dead' || resultType === 'abandoned',
+      killedBy: resultType === 'dead' ? currentMonster?.name : (resultType === 'abandoned' ? 'self' : undefined),
+      abandonMessage: resultType === 'abandoned' ? message : undefined
+    };
+
+    // 4. Transition
+    if (resultType === 'dead' || resultType === 'abandoned') {
+      setDeadCharacter(finalCharState);
+      setScreen('gameover');
+    } else if (resultType === 'cleared') {
+      const finalEnding = determineEnding(character);
+      setEndingType(finalEnding);
+      setScreen('ending');
+    }
+    
+    // 5. Cleanup current run
+    try {
+      await deleteDoc(doc(db, 'characters', user.uid));
+    } catch (error) {
+      console.error('Failed to delete character:', error);
+    }
+    
+    setCurrentMonster(null);
+  };
+
+  const handleAbandon = () => {
+    if (!character) return;
+    const messageKey = selectAbandonMessage(character);
+    handleEndRun('abandoned', t(messageKey));
   };
 
   const handleBattleFinish = async (winner: 'player' | 'monster', rewards?: { exp: number; gold: number; items?: Item[]; finalStats: Stats; metrics: { damageTaken: number; damageDealt: number; turns: number; riskySkillUsage: number; chanceSkillUsage: number } }, killerName?: string) => {
@@ -120,7 +200,6 @@ export default function App() {
     let updatedChar = { ...character };
 
     if (rewards) {
-      // Ensure playData exists
       const currentPlayData = character.playData || {
         totalDamageTaken: 0,
         totalDamageDealt: 0,
@@ -132,7 +211,6 @@ export default function App() {
         bossesDefeated: 0,
       };
 
-      // Update playData
       updatedChar.playData = {
         ...currentPlayData,
         totalDamageTaken: currentPlayData.totalDamageTaken + rewards.metrics.damageTaken,
@@ -143,15 +221,15 @@ export default function App() {
         battlesWon: winner === 'player' ? currentPlayData.battlesWon + 1 : currentPlayData.battlesWon,
         bossesDefeated: (winner === 'player' && currentMonster?.id.startsWith('m_boss')) ? currentPlayData.bossesDefeated + 1 : currentPlayData.bossesDefeated,
       };
+      
+      // Update stats and HP from battle
+      updatedChar.stats = rewards.finalStats;
     }
 
     if (winner === 'player' && rewards) {
       // Check for final boss
       if (currentMonster?.id === 'm_final') {
-        const finalEnding = determineEnding(updatedChar);
-        setEndingType(finalEnding);
-        setCharacter(updatedChar);
-        setScreen('ending');
+        handleEndRun('cleared', t('ending.victory_desc'));
         return;
       }
 
@@ -166,7 +244,7 @@ export default function App() {
         newLevel += 1;
         newNextLevelExp = Math.floor(newNextLevelExp * 1.5);
         newStats.maxHp += 20;
-        newStats.hp = newStats.maxHp; // Full heal on level up
+        newStats.hp = newStats.maxHp;
         newStats.attack += 5;
         newStats.defense += 3;
         newStats.maxMp += 10;
@@ -174,12 +252,6 @@ export default function App() {
         leveledUp = true;
       }
 
-      // If no level up, maintain the HP from battle (which is already in the battleState, but we need to pass it back)
-      // Actually, Battle.tsx should pass back the final stats if we want to be precise.
-      // For now, let's assume the player's HP was updated in the battleState.
-      // Wait, Battle.tsx doesn't pass back final stats yet. I should update that.
-      
-      // Random skill acquisition (50% chance)
       const currentSkills = character.skills || [];
       const currentSkillIds = currentSkills.map(s => s.id);
       const availableSkills = SKILLS.filter(s => !currentSkillIds.includes(s.id));
@@ -191,22 +263,20 @@ export default function App() {
         setNewSkill(skill);
       }
 
-      // Handle items
       const newInventory = [...(character.inventory || [])];
       if (rewards.items) {
         newInventory.push(...rewards.items);
       }
 
-      // Floor progression
       const nextFloor = character.currentFloor + 1;
       const newMaxFloor = Math.max(character.maxFloor, nextFloor);
 
       updatedChar = {
-        ...character,
+        ...updatedChar,
         level: newLevel,
         exp: newExp,
         nextLevelExp: newNextLevelExp,
-        stats: leveledUp ? newStats : (rewards.finalStats || character.stats),
+        stats: leveledUp ? newStats : updatedChar.stats,
         gold: character.gold + rewards.gold,
         inventory: newInventory,
         skills: finalSkills,
@@ -217,30 +287,7 @@ export default function App() {
       await saveCharacter(updatedChar);
       setScreen('lobby');
     } else if (winner === 'monster') {
-      // PERMADEATH: Mark as dead and move to graveyard
-      const finalChar = {
-        ...character,
-        isDead: true,
-        stats: { ...character.stats, hp: 0 },
-        killedBy: killerName || 'Unknown Monster',
-      };
-      
-      setDeadCharacter(finalChar);
-      setScreen('gameover');
-
-      try {
-        // Save to graveyard with unique ID
-        const graveyardRef = doc(db, 'graveyard', `${user.uid}_${Date.now()}`);
-        await setDoc(graveyardRef, finalChar);
-        console.log('Character moved to graveyard');
-        
-        // Delete from active characters
-        await deleteDoc(doc(db, 'characters', user.uid));
-        console.log('Active character deleted');
-      } catch (error) {
-        console.error('Failed to process permadeath:', error);
-        handleFirestoreError(error, OperationType.WRITE, 'graveyard');
-      }
+      handleEndRun('dead', t('gameover.death_desc'));
     }
 
     setCurrentMonster(null);
@@ -376,7 +423,10 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <CharacterCreation onComplete={handleCreationComplete} />
+            <CharacterCreation 
+              metaCurrency={metaCurrency}
+              onComplete={handleCreationComplete} 
+            />
           </motion.div>
         )}
         
@@ -389,7 +439,8 @@ export default function App() {
           >
             <Lobby 
               character={character} 
-              onStartBattle={handleStartBattle} 
+              onExplore={() => setScreen('map-selection')}
+              onAbandon={handleAbandon}
               onLogout={handleLogout}
               onOpenShop={() => setScreen('shop')}
               onOpenLeaderboard={() => setScreen('leaderboard')}
@@ -439,7 +490,23 @@ export default function App() {
             <Battle 
               player={character} 
               monster={currentMonster} 
-              onFinish={handleBattleFinish} 
+              onFinish={handleBattleFinish}
+              onAbandon={handleAbandon}
+            />
+          </motion.div>
+        )}
+
+        {screen === 'map-selection' && character && (
+          <motion.div
+            key="map-selection"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <MapSelection 
+              playerLevel={character.level}
+              onSelect={handleStartBattle}
+              onBack={() => setScreen('lobby')}
             />
           </motion.div>
         )}
@@ -490,10 +557,26 @@ export default function App() {
               <p className="text-zinc-500 text-lg font-mono uppercase tracking-widest">
                 {deadCharacter.name} {t('gameover.fallen')}
               </p>
-              {deadCharacter.killedBy && (
-                <p className="text-red-500/70 text-sm font-mono italic">
-                  {t('gameover.killed_by')} {t(`monster.${deadCharacter.killedBy}`)}
-                </p>
+              {deadCharacter.abandonMessage ? (
+                <motion.p 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="text-zinc-400 text-xl font-serif italic max-w-lg mx-auto leading-relaxed"
+                >
+                  "{deadCharacter.abandonMessage}"
+                </motion.p>
+              ) : (
+                <>
+                  {deadCharacter.killedBy && (
+                    <p className="text-red-500/70 text-sm font-mono italic">
+                      {t('gameover.killed_by')} {t(`monster.${deadCharacter.killedBy}`)}
+                    </p>
+                  )}
+                  <p className="text-zinc-500 text-sm italic mt-2">
+                    {t('gameover.death_desc')}
+                  </p>
+                </>
               )}
             </div>
 

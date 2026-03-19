@@ -1,4 +1,4 @@
-import { Character, CharacterClass, Monster, Stats, Skill, Item, Dungeon } from '../types/game';
+import { Character, CharacterClass, Monster, Stats, Skill, Item, Dungeon, RunResult } from '../types/game';
 
 export const SKILLS: Skill[] = [
   // Warrior
@@ -40,7 +40,7 @@ export const CLASS_STATS: Record<CharacterClass, Stats> = {
   Rogue: { hp: 90, maxHp: 90, mp: 50, maxMp: 50, attack: 18, defense: 7, speed: 15 },
 };
 
-export const createCharacter = (name: string, charClass: CharacterClass, uid: string): Character => {
+export const createCharacter = (name: string, charClass: CharacterClass, uid: string, metaCurrency: number = 0): Character => {
   const stats = { ...CLASS_STATS[charClass] };
   
   let startingSkills: Skill[] = [];
@@ -61,6 +61,7 @@ export const createCharacter = (name: string, charClass: CharacterClass, uid: st
     equipped: {},
     skills: startingSkills,
     gold: 0,
+    metaCurrency,
     isDead: false,
     score: 0,
     currentFloor: 1,
@@ -75,6 +76,7 @@ export const createCharacter = (name: string, charClass: CharacterClass, uid: st
       totalTurns: 0,
       bossesDefeated: 0,
     },
+    startTime: Date.now(),
   };
 };
 
@@ -149,33 +151,51 @@ export const MONSTERS: Monster[] = [
 export const DUNGEONS: Dungeon[] = [
   {
     id: 'd1',
-    name: 'Slime Forest',
-    description: 'A forest filled with green slimes.',
+    name: 'Peaceful Grassland',
+    description: 'A calm field where slimes and goblins roam.',
     monsterPool: ['m1', 'm2'],
     bossId: 'm2',
     minLevel: 1,
     maxFloor: 5,
-    image: 'https://picsum.photos/seed/forest/400/200',
+    image: 'https://picsum.photos/seed/grassland/400/200',
+    trait: { id: 't1', name: 'Standard', description: 'No special effects.', effect: 'none' },
+    scaling: 1.05
   },
   {
     id: 'd2',
-    name: 'Dark Cave',
-    description: 'A dark cave where skeletons roam.',
-    monsterPool: ['m2', 'm3'],
+    name: 'Toxic Swamp',
+    description: 'A murky swamp filled with poison.',
+    monsterPool: ['m1', 'm2'], // Should add more monsters later
     bossId: 'm3',
     minLevel: 5,
     maxFloor: 10,
-    image: 'https://picsum.photos/seed/cave/400/200',
+    image: 'https://picsum.photos/seed/swamp/400/200',
+    trait: { id: 't2', name: 'Poisonous', description: 'Lose 3% HP every turn.', effect: 'poison', value: 0.03 },
+    scaling: 1.10
   },
   {
     id: 'd3',
-    name: 'Orc Stronghold',
-    description: 'The territory of the fierce orcs.',
-    monsterPool: ['m3', 'm4'],
+    name: 'Forgotten Ruins',
+    description: 'Ancient ruins where the dead do not rest.',
+    monsterPool: ['m2', 'm3'],
     bossId: 'm4',
     minLevel: 10,
     maxFloor: 15,
-    image: 'https://picsum.photos/seed/stronghold/400/200',
+    image: 'https://picsum.photos/seed/ruins/400/200',
+    trait: { id: 't3', name: 'Cursed', description: '20% chance for monsters to revive.', effect: 'curse', value: 0.2 },
+    scaling: 1.15
+  },
+  {
+    id: 'd4',
+    name: 'Frozen Highlands',
+    description: 'Cold mountains where the wind bites.',
+    monsterPool: ['m3', 'm4'],
+    bossId: 'm5',
+    minLevel: 15,
+    maxFloor: 20,
+    image: 'https://picsum.photos/seed/highlands/400/200',
+    trait: { id: 't4', name: 'Gale', description: 'Accuracy reduced by 15%.', effect: 'wind', value: 0.15 },
+    scaling: 1.20
   },
   {
     id: 'd_final',
@@ -183,9 +203,11 @@ export const DUNGEONS: Dungeon[] = [
     description: 'The final stronghold of the Demon Lord.',
     monsterPool: ['m4', 'm5'],
     bossId: 'm_final',
-    minLevel: 15,
-    maxFloor: 20,
+    minLevel: 20,
+    maxFloor: 25,
     image: 'https://picsum.photos/seed/castle/400/200',
+    trait: { id: 't5', name: 'Chaos', description: 'Random effects every battle.', effect: 'chaos' },
+    scaling: 1.25
   },
 ];
 
@@ -194,8 +216,8 @@ export const generateMonster = (dungeonId: string, floor: number, isBoss: boolea
   const monsterId = isBoss ? dungeon.bossId : dungeon.monsterPool[Math.floor(Math.random() * dungeon.monsterPool.length)];
   const baseMonster = MONSTERS.find(m => m.id === monsterId)!;
   
-  // Scaling logic
-  const scale = 1 + (floor - 1) * 0.1;
+  // Scaling logic based on region's scaling factor and floor
+  const scale = Math.pow(dungeon.scaling, floor - 1);
   const scaledStats: Stats = {
     hp: Math.floor(baseMonster.stats.hp * scale),
     maxHp: Math.floor(baseMonster.stats.maxHp * scale),
@@ -251,24 +273,95 @@ export const calculateDamage = (attacker: Stats, defender: Stats): number => {
 
 export type EndingType = 'Normal' | 'Berserker' | 'Survivor' | 'Gambler' | 'Tactician';
 
+export const ABANDON_MESSAGES = {
+  default: [
+    "abandon.default.0",
+    "abandon.default.1",
+    "abandon.default.2",
+    "abandon.default.3",
+    "abandon.default.4",
+    "abandon.default.5"
+  ],
+  lowHp: [
+    "abandon.lowHp.0",
+    "abandon.lowHp.1"
+  ],
+  earlyQuit: [
+    "abandon.earlyQuit.0",
+    "abandon.earlyQuit.1"
+  ],
+  longRun: [
+    "abandon.longRun.0",
+    "abandon.longRun.1"
+  ],
+  riskyPlay: [
+    "abandon.riskyPlay.0",
+    "abandon.riskyPlay.1"
+  ]
+};
+
 export const determineEnding = (character: Character): EndingType => {
-  const playData = character.playData || {
-    totalDamageTaken: 0,
-    totalDamageDealt: 0,
-    riskySkillUsage: 0,
-    chanceSkillUsage: 0,
-    itemUsage: 0,
-    battlesWon: 0,
-    totalTurns: 0,
-    bossesDefeated: 0,
-  };
+  const playData = character.playData;
   
-  // Priorities: Berserker > Gambler > Survivor > Tactician > Normal
-  
-  if (playData.riskySkillUsage > 15) return 'Berserker';
+  if (playData.riskySkillUsage > 20) return 'Berserker';
+  if (playData.totalDamageTaken < 100 && character.level > 10) return 'Survivor';
   if (playData.chanceSkillUsage > 15) return 'Gambler';
-  if (playData.itemUsage < 5 && character.stats.hp > character.stats.maxHp * 0.5) return 'Survivor';
-  if (playData.totalTurns / Math.max(1, playData.battlesWon) < 5) return 'Tactician';
+  if (playData.totalTurns / (playData.battlesWon || 1) < 5) return 'Tactician';
   
   return 'Normal';
+};
+
+export const selectAbandonMessage = (character: Character): string => {
+  const hpPercent = character.stats.hp / character.stats.maxHp;
+  const battleCount = character.playData.battlesWon;
+  const playTime = (Date.now() - character.startTime) / 1000;
+  const riskyUsage = character.playData.riskySkillUsage;
+
+  // Priority 1: Low HP
+  if (hpPercent < 0.2) {
+    return ABANDON_MESSAGES.lowHp[Math.floor(Math.random() * ABANDON_MESSAGES.lowHp.length)];
+  }
+  
+  // Priority 2: Risky Play
+  if (riskyUsage > 10) {
+    return ABANDON_MESSAGES.riskyPlay[Math.floor(Math.random() * ABANDON_MESSAGES.riskyPlay.length)];
+  }
+
+  // Priority 3: Long Run
+  if (character.currentFloor >= 15 || playTime >= 1800) {
+    return ABANDON_MESSAGES.longRun[Math.floor(Math.random() * ABANDON_MESSAGES.longRun.length)];
+  }
+
+  // Priority 4: Early Quit
+  if (battleCount < 3) {
+    return ABANDON_MESSAGES.earlyQuit[Math.floor(Math.random() * ABANDON_MESSAGES.earlyQuit.length)];
+  }
+  
+  // Default
+  return ABANDON_MESSAGES.default[Math.floor(Math.random() * ABANDON_MESSAGES.default.length)];
+};
+
+export const buildRunResult = (character: Character, resultType: 'abandoned' | 'dead' | 'cleared', message: string): RunResult => {
+  return {
+    resultType,
+    message,
+    finalSnapshot: {
+      className: character.class,
+      level: character.level,
+      hp: character.stats.hp,
+      maxHp: character.stats.maxHp,
+      runGold: character.gold,
+      dungeonId: character.currentDungeonId || 'none',
+      floor: character.currentFloor
+    },
+    performanceMetrics: {
+      playTime: Math.floor((Date.now() - character.startTime) / 1000),
+      battleCount: character.playData.battlesWon,
+      totalTurns: character.playData.totalTurns,
+      damageDealt: character.playData.totalDamageDealt,
+      damageTaken: character.playData.totalDamageTaken,
+      itemsCollected: character.inventory.length,
+      riskySkillUsage: character.playData.riskySkillUsage
+    }
+  };
 };

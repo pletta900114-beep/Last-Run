@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Character, Monster, BattleState, Skill, BattleLog, Item, Stats, Buff } from '../types/game';
-import { calculateDamage, getTotalStats, ITEMS } from '../services/gameLogic';
+import { calculateDamage, getTotalStats, ITEMS, DUNGEONS } from '../services/gameLogic';
 import { motion, AnimatePresence } from 'motion/react';
-import { Swords, Shield, Heart, Zap, ScrollText, ChevronDown, Package } from 'lucide-react';
+import { Swords, Shield, Heart, Zap, ScrollText, ChevronDown, Package, Skull } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -15,9 +15,10 @@ interface BattleProps {
   player: Character;
   monster: Monster;
   onFinish: (winner: 'player' | 'monster', rewards?: { exp: number; gold: number; items?: Item[]; finalStats: Stats; metrics: { damageTaken: number; damageDealt: number; turns: number; riskySkillUsage: number; chanceSkillUsage: number } }, killerName?: string) => void;
+  onAbandon: () => void;
 }
 
-export default function Battle({ player, monster, onFinish }: BattleProps) {
+export default function Battle({ player, monster, onFinish, onAbandon }: BattleProps) {
   const { t } = useLanguage();
   const playerTotalStats = getTotalStats(player);
   
@@ -334,9 +335,25 @@ export default function Battle({ player, monster, onFinish }: BattleProps) {
           damageTakenThisBattle: prev.damageTakenThisBattle + damage,
           turn: 'player',
           playerDefending: false,
-          // Decrement buffs at start of player turn
           playerBuffs: prev.playerBuffs.map(b => ({ ...b, duration: b.duration - 1 })).filter(b => b.duration > 0)
         }));
+        
+        // Apply Dungeon Trait at end of monster turn (start of player turn)
+        if (player.currentDungeonId) {
+          const dungeon = DUNGEONS.find(d => d.id === player.currentDungeonId);
+          if (dungeon?.trait.id === 'poison') {
+            const poisonDamage = Math.floor(playerTotalStats.maxHp * 0.05);
+            setBattleState(prev => ({
+              ...prev,
+              player: {
+                ...prev.player,
+                stats: { ...prev.player.stats, hp: Math.max(1, prev.player.stats.hp - poisonDamage) }
+              },
+              damageTakenThisBattle: prev.damageTakenThisBattle + poisonDamage
+            }));
+            addLog(t('battle.trait_poison', { damage: poisonDamage }));
+          }
+        }
         
         addLog(log);
         setIsAnimating(false);
@@ -542,6 +559,14 @@ export default function Battle({ player, monster, onFinish }: BattleProps) {
               )}
             </AnimatePresence>
           </div>
+          <button
+            onClick={onAbandon}
+            disabled={battleState.isFinished || isAnimating}
+            className="flex items-center gap-2 px-6 py-3 bg-red-950/20 text-red-500 border border-red-900/30 rounded-xl font-bold hover:bg-red-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Skull size={20} />
+            {t('battle.abandon')}
+          </button>
         </div>
       </div>
     </div>

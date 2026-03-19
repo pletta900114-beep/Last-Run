@@ -41,6 +41,29 @@ export interface DropTable {
   chance: number; // 0 to 1
 }
 
+export interface RunResult {
+  resultType: 'abandoned' | 'dead' | 'cleared';
+  message: string;
+  finalSnapshot: {
+    className: CharacterClass;
+    level: number;
+    hp: number;
+    maxHp: number;
+    runGold: number;
+    dungeonId: string;
+    floor: number;
+  };
+  performanceMetrics: {
+    playTime: number; // seconds
+    battleCount: number;
+    totalTurns: number;
+    damageDealt: number;
+    damageTaken: number;
+    itemsCollected: number;
+    riskySkillUsage: number;
+  };
+}
+
 export interface Character {
   id: string;
   uid: string;
@@ -56,14 +79,17 @@ export interface Character {
     armor?: Item;
   };
   skills: Skill[];
-  gold: number;
+  gold: number; // This is runGold
+  metaCurrency: number; // Persistent currency
   isDead: boolean;
   score: number;
   killedBy?: string;
+  abandonMessage?: string;
   currentDungeonId?: string;
   currentFloor: number;
   maxFloor: number;
   playData: PlayData;
+  startTime: number;
 }
 
 export interface PlayData {
@@ -89,6 +115,14 @@ export interface Monster {
   dropTable?: DropTable[];
 }
 
+export interface DungeonTrait {
+  id: string;
+  name: string;
+  description: string;
+  effect: 'poison' | 'curse' | 'wind' | 'fire' | 'chaos' | 'none';
+  value?: number;
+}
+
 export interface Dungeon {
   id: string;
   name: string;
@@ -98,6 +132,8 @@ export interface Dungeon {
   minLevel: number;
   maxFloor: number;
   image: string;
+  trait: DungeonTrait;
+  scaling: number;
 }
 
 export interface DungeonState {

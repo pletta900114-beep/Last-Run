@@ -39,6 +39,14 @@ const translations: Translations = {
     'lobby.equipment': 'Equipment',
     'lobby.inventory_empty': 'Inventory is empty',
     'lobby.floor': 'Floor',
+    'lobby.ready_to_explore': 'Ready to Explore?',
+    'lobby.choose_region': 'Select a region to begin your journey',
+    'lobby.start_exploration': 'Start Exploration',
+    'lobby.abandon': 'Abandon Run',
+    'lobby.logout': 'Logout',
+    'lobby.current_floor': 'Current Floor',
+    'lobby.max_floor': 'Max Floor',
+    'lobby.battles_won': 'Battles Won',
     'common.back': 'Back',
     'common.confirm': 'Confirm',
     
@@ -47,6 +55,8 @@ const translations: Translations = {
     'map.subtitle': 'Select Your Destination',
     'map.min_level': 'Min Level',
     'map.max_floor': 'Max Floor',
+    'map.enter': 'Enter Region',
+    'map.locked': 'Level Too Low',
     
     // Dungeon
     'dungeon.floor': 'Floor',
@@ -84,6 +94,8 @@ const translations: Translations = {
     'battle.blocked_log': '{{name}} blocked half the damage!',
     'battle.defeated': '{{name}} was defeated!',
     'battle.player_defeated': '{{name}} was defeated...',
+    'battle.abandon': 'Abandon',
+    'battle.trait_poison': 'The poison in the air deals {{damage}} damage!',
     
     // Shop
     'shop.title': "Merchant's Stall",
@@ -110,6 +122,27 @@ const translations: Translations = {
     'gameover.total_score': 'Total Score',
     'gameover.new_run': 'New Run',
     'gameover.leaderboard': 'Leaderboard',
+    'gameover.death_desc': 'Your journey ends here. May your soul find peace.',
+    
+    // Abandon
+    'abandon.self': 'Self-Abandonment',
+    'abandon.default.0': '[Narrative] Your footsteps fade into the abyss. The adventure stops here.',
+    'abandon.default.1': '[Narrative] No rest is granted to the soul that lets go of its own string.',
+    'abandon.default.2': '[Provocation] A strategic retreat, or a simple surrender? History will judge.',
+    'abandon.default.3': '[Provocation] It is easy to lay down a heavy burden, but the price is never light.',
+    'abandon.default.4': '[Log] Session terminated. The subject has self-evacuated from the battlefield.',
+    'abandon.default.5': '[Log] Run aborted. Transmitting current records to the archives.',
+    'abandon.lowHp.0': 'You turned your back at the threshold of death. You chose survival over cowardice.',
+    'abandon.lowHp.1': 'The smell of blood has broken your will.',
+    'abandon.earlyQuit.0': 'The flame went out before the adventure even began. Was it too hasty a judgment?',
+    'abandon.earlyQuit.1': 'What did you see in this short journey that made you flee in such a hurry?',
+    'abandon.longRun.0': 'The finish line was not far, but the fatigue of the long journey finally broke you.',
+    'abandon.longRun.1': 'Even though you held out for so long, you lacked the courage to take that last step.',
+    'abandon.riskyPlay.0': "The gambler's luck ends here. You bet too much, and finally stopped before losing everything.",
+    'abandon.riskyPlay.1': 'You enjoyed walking the dangerous tightrope, and finally cut the rope yourself.',
+    
+    // Ending
+    'ending.victory_desc': 'You have conquered the final challenge and saved the world!',
     
     // Skills Notification
     'skill.learned': 'New Skill Learned!',
@@ -217,6 +250,14 @@ const translations: Translations = {
     'lobby.equipment': '장착 장비',
     'lobby.inventory_empty': '인벤토리가 비어 있습니다',
     'lobby.floor': '층',
+    'lobby.ready_to_explore': '탐험을 시작하시겠습니까?',
+    'lobby.choose_region': '여정을 시작할 지역을 선택하세요',
+    'lobby.start_exploration': '탐험 시작',
+    'lobby.abandon': '런 포기',
+    'lobby.logout': '로그아웃',
+    'lobby.current_floor': '현재 층수',
+    'lobby.max_floor': '최대 층수',
+    'lobby.battles_won': '승리 횟수',
     'common.back': '뒤로가기',
     'common.confirm': '확인',
     
@@ -225,6 +266,8 @@ const translations: Translations = {
     'map.subtitle': '목적지를 선택하세요',
     'map.min_level': '최소 레벨',
     'map.max_floor': '최대 층수',
+    'map.enter': '지역 입장',
+    'map.locked': '레벨 부족',
     
     // Dungeon
     'dungeon.floor': '층',
@@ -262,6 +305,8 @@ const translations: Translations = {
     'battle.blocked_log': '{{name}}이(가) 공격을 절반으로 방어했습니다!',
     'battle.defeated': '{{name}}을(를) 처치했습니다!',
     'battle.player_defeated': '{{name}}이(가) 쓰러졌습니다...',
+    'battle.abandon': '포기',
+    'battle.trait_poison': '공기 중의 독기가 {{damage}}의 피해를 입힙니다!',
     
     // Shop
     'shop.title': '상인의 가판대',
@@ -288,6 +333,27 @@ const translations: Translations = {
     'gameover.total_score': '최종 점수',
     'gameover.new_run': '새로운 시작',
     'gameover.leaderboard': '명예의 전당',
+    'gameover.death_desc': '당신의 여정은 여기서 끝납니다. 영혼에 평화가 깃들기를.',
+
+    // Abandon
+    'abandon.self': '자진 포기',
+    'abandon.default.0': '[서사] 당신의 발자국 소리가 심연 속으로 잦아듭니다. 모험은 여기서 멈췄습니다.',
+    'abandon.default.1': '[서사] 스스로 끈을 놓아버린 영혼에게 안식은 허락되지 않을 것입니다.',
+    'abandon.default.2': '[도발] 전략적인 후퇴인가요, 아니면 단순한 항복인가요? 판단은 역사가 할 것입니다.',
+    'abandon.default.3': '[도발] 무거운 짐을 내려놓는 것은 쉽지만, 그 대가는 결코 가볍지 않습니다.',
+    'abandon.default.4': '[로그] 세션 강제 종료. 피험자가 스스로 전장을 이탈했습니다.',
+    'abandon.default.5': '[로그] 런 중단됨. 현재까지의 기록을 보관소로 전송합니다.',
+    'abandon.lowHp.0': '죽음의 문턱에서 등을 돌렸습니다. 비겁함보다는 생존을 택했군요.',
+    'abandon.lowHp.1': '피 냄새가 당신의 의지를 꺾어 놓았습니다.',
+    'abandon.earlyQuit.0': '모험이 시작되기도 전에 불꽃이 꺼졌습니다. 너무 성급한 판단은 아니었을까요?',
+    'abandon.earlyQuit.1': '이 짧은 여정에서 무엇을 보았기에 그리 서둘러 도망치십니까?',
+    'abandon.longRun.0': '결승선이 머지않았으나, 긴 여정의 피로가 결국 당신을 무너뜨렸습니다.',
+    'abandon.longRun.1': '그토록 오래 버텼음에도, 마지막 한 걸음을 내딛을 용기가 부족했군요.',
+    'abandon.riskyPlay.0': '도박사의 운은 여기까지입니다. 너무 많은 것을 걸었고, 결국 모든 것을 잃기 전에 멈췄군요.',
+    'abandon.riskyPlay.1': '위험한 줄타기를 즐기더니, 결국 스스로 줄을 끊어버렸습니다.',
+
+    // Ending
+    'ending.victory_desc': '당신은 최후의 시련을 이겨내고 세상을 구했습니다!',
     
     // Skills Notification
     'skill.learned': '새로운 스킬 습득!',

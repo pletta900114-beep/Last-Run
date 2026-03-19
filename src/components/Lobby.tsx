@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { Character, Monster, Item } from '../types/game';
 import { MONSTERS, getTotalStats } from '../services/gameLogic';
 import { motion, AnimatePresence } from 'motion/react';
-import { Swords, Shield, Heart, Zap, ChevronRight, LogOut, ShoppingBag, Skull, Trophy, Package, X } from 'lucide-react';
+import { Swords, Shield, Heart, Zap, ChevronRight, LogOut, ShoppingBag, Skull, Trophy, Package, X, Sparkles, Globe } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface LobbyProps {
   character: Character;
-  onStartBattle: (monster: Monster) => void;
+  onExplore: () => void;
+  onAbandon: () => void;
   onLogout: () => void;
   onOpenShop: () => void;
   onOpenLeaderboard: () => void;
@@ -16,7 +17,7 @@ interface LobbyProps {
   onUseItem: (item: Item) => void;
 }
 
-export default function Lobby({ character, onStartBattle, onLogout, onOpenShop, onOpenLeaderboard, onEquip, onUnequip, onUseItem }: LobbyProps) {
+export default function Lobby({ character, onExplore, onAbandon, onLogout, onOpenShop, onOpenLeaderboard, onEquip, onUnequip, onUseItem }: LobbyProps) {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'adventures' | 'inventory'>('adventures');
   const totalStats = getTotalStats(character);
@@ -65,8 +66,16 @@ export default function Lobby({ character, onStartBattle, onLogout, onOpenShop, 
             <button 
               onClick={onLogout}
               className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-500 hover:text-zinc-100 hover:border-zinc-700 transition-all"
+              title={t('lobby.logout')}
             >
               <LogOut size={20} />
+            </button>
+            <button 
+              onClick={onAbandon}
+              className="p-3 bg-red-950/20 border border-red-900/30 rounded-xl text-red-500 hover:bg-red-900/40 transition-all"
+              title={t('lobby.abandon')}
+            >
+              <Skull size={20} />
             </button>
           </div>
         </header>
@@ -103,6 +112,15 @@ export default function Lobby({ character, onStartBattle, onLogout, onOpenShop, 
                 <div className="space-y-0.5">
                   <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500">{t('lobby.gold')}</span>
                   <p className="text-xl font-black font-mono">{character.gold}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 border-l border-zinc-800 pl-6">
+                <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
+                  <Sparkles size={20} />
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500">Meta</span>
+                  <p className="text-xl font-black font-mono">{character.metaCurrency || 0}</p>
                 </div>
               </div>
             </div>
@@ -149,39 +167,38 @@ export default function Lobby({ character, onStartBattle, onLogout, onOpenShop, 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                  className="flex flex-col items-center justify-center py-12 space-y-8 bg-zinc-900/30 border border-zinc-800 rounded-3xl"
                 >
-                  {MONSTERS.map((monster) => (
-                    <motion.button
-                      key={monster.id}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => onStartBattle(monster)}
-                      className="group relative bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-left hover:border-zinc-100 transition-all overflow-hidden"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-20 h-20 bg-zinc-800 rounded-xl overflow-hidden border border-zinc-700">
-                          <img 
-                            src={monster.image} 
-                            alt={t(`monster.${monster.name}`)} 
-                            className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
-                            referrerPolicy="no-referrer"
-                          />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <div className="flex justify-between items-center">
-                            <h4 className="text-lg font-black uppercase tracking-tighter italic">{t(`monster.${monster.name}`)}</h4>
-                            <span className="text-[10px] font-mono bg-zinc-800 px-2 py-0.5 rounded text-zinc-400">{t('lobby.level')} {monster.level}</span>
-                          </div>
-                          <div className="flex gap-3 text-[10px] uppercase font-bold tracking-widest text-zinc-500">
-                            <span className="flex items-center gap-1"><Swords size={10} /> {monster.stats.attack}</span>
-                            <span className="flex items-center gap-1"><Heart size={10} /> {monster.stats.hp}</span>
-                          </div>
-                        </div>
-                        <ChevronRight className="text-zinc-700 group-hover:text-zinc-100 transition-colors" />
-                      </div>
-                    </motion.button>
-                  ))}
+                  <div className="text-center space-y-2">
+                    <h3 className="text-4xl font-black uppercase tracking-tighter italic">{t('lobby.ready_to_explore')}</h3>
+                    <p className="text-zinc-500 text-sm font-mono uppercase tracking-widest">{t('lobby.choose_region')}</p>
+                  </div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={onExplore}
+                    className="group relative px-12 py-6 bg-zinc-100 text-zinc-950 rounded-3xl font-black uppercase tracking-[0.2em] italic text-xl shadow-[0_0_40px_rgba(255,255,255,0.1)] hover:shadow-[0_0_60px_rgba(255,255,255,0.2)] transition-all flex items-center gap-4"
+                  >
+                    <Globe className="w-6 h-6 animate-pulse" />
+                    {t('lobby.start_exploration')}
+                    <ChevronRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
+                  </motion.button>
+
+                  <div className="grid grid-cols-3 gap-8 pt-8 border-t border-zinc-800/50 w-full max-w-lg">
+                    <div className="text-center space-y-1">
+                      <div className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">{t('lobby.current_floor')}</div>
+                      <div className="text-xl font-black italic">{character.currentFloor}F</div>
+                    </div>
+                    <div className="text-center space-y-1">
+                      <div className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">{t('lobby.max_floor')}</div>
+                      <div className="text-xl font-black italic">{character.maxFloor}F</div>
+                    </div>
+                    <div className="text-center space-y-1">
+                      <div className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">{t('lobby.battles_won')}</div>
+                      <div className="text-xl font-black italic">{character.playData?.battlesWon || 0}</div>
+                    </div>
+                  </div>
                 </motion.div>
               ) : (
                 <motion.div
@@ -293,7 +310,7 @@ function InventoryItem({ item, onEquip, onUse, isEquipped }: { item: Item, onEqu
             onClick={onUse}
             className="w-full py-1.5 bg-emerald-500 text-emerald-950 text-[10px] font-black uppercase tracking-widest italic rounded-lg hover:bg-emerald-400 transition-all"
           >
-            {t('shop.buy')} {/* Reusing buy text or similar */}
+            {t('lobby.use')}
           </button>
         ) : (
           <button
@@ -305,7 +322,7 @@ function InventoryItem({ item, onEquip, onUse, isEquipped }: { item: Item, onEqu
                 : 'bg-zinc-100 text-zinc-950 hover:bg-white'
             }`}
           >
-            {isEquipped ? t('lobby.equipment') : t('shop.buy')}
+            {isEquipped ? t('lobby.equipped') : t('lobby.equip')}
           </button>
         )}
       </div>
