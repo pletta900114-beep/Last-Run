@@ -271,16 +271,14 @@ export const calculateDamage = (attacker: Stats, defender: Stats): number => {
   return finalDamage;
 };
 
-export type EndingType = 'Normal' | 'Berserker' | 'Survivor' | 'Gambler' | 'Tactician';
+export type EndingType = 'normal' | 'berserker' | 'survivor' | 'gambler' | 'tactician';
 
 export const ABANDON_MESSAGES = {
   default: [
     "abandon.default.0",
     "abandon.default.1",
     "abandon.default.2",
-    "abandon.default.3",
-    "abandon.default.4",
-    "abandon.default.5"
+    "abandon.default.3"
   ],
   lowHp: [
     "abandon.lowHp.0",
@@ -303,12 +301,12 @@ export const ABANDON_MESSAGES = {
 export const determineEnding = (character: Character): EndingType => {
   const playData = character.playData;
   
-  if (playData.riskySkillUsage > 20) return 'Berserker';
-  if (playData.totalDamageTaken < 100 && character.level > 10) return 'Survivor';
-  if (playData.chanceSkillUsage > 15) return 'Gambler';
-  if (playData.totalTurns / (playData.battlesWon || 1) < 5) return 'Tactician';
+  if (playData.riskySkillUsage > 20) return 'berserker';
+  if (playData.totalDamageTaken < 100 && character.level > 10) return 'survivor';
+  if (playData.chanceSkillUsage > 15) return 'gambler';
+  if (playData.totalTurns / (playData.battlesWon || 1) < 5) return 'tactician';
   
-  return 'Normal';
+  return 'normal';
 };
 
 export const selectAbandonMessage = (character: Character): string => {

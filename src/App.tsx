@@ -23,6 +23,30 @@ function cn(...inputs: ClassValue[]) {
 
 type Screen = 'lobby' | 'battle' | 'creation' | 'shop' | 'loading' | 'login' | 'leaderboard' | 'gameover' | 'ending' | 'map-selection';
 
+const defaultPlayData = {
+  totalDamageTaken: 0,
+  totalDamageDealt: 0,
+  riskySkillUsage: 0,
+  chanceSkillUsage: 0,
+  itemUsage: 0,
+  battlesWon: 0,
+  totalTurns: 0,
+  bossesDefeated: 0,
+};
+
+function normalizeCharacterData(char: Character): Character {
+  return {
+    ...char,
+    inventory: char.inventory || [],
+    equipped: char.equipped || {},
+    skills: char.skills || [],
+    playData: {
+      ...defaultPlayData,
+      ...(char.playData || {}),
+    },
+  };
+}
+
 export default function App() {
   const { t, language, setLanguage } = useLanguage();
   const [screen, setScreen] = useState<Screen>('loading');
@@ -45,26 +69,14 @@ export default function App() {
         // Fetch meta currency
         const userRef = doc(db, 'users', user.uid);
         const userSnap = await getDocFromServer(userRef);
+        
         if (userSnap.exists()) {
           setMetaCurrency(userSnap.data().metaCurrency || 0);
+          
         }
       }
     });
     return () => unsubscribe();
-  }, []);
-
-  // Firestore connection test
-  useEffect(() => {
-    async function testConnection() {
-      try {
-        await getDocFromServer(doc(db, 'test', 'connection'));
-      } catch (error) {
-        if (error instanceof Error && error.message.includes('the client is offline')) {
-          console.error("Please check your Firebase configuration.");
-        }
-      }
-    }
-    testConnection();
   }, []);
 
   // Character sync
@@ -74,8 +86,7 @@ export default function App() {
     const characterRef = doc(db, 'characters', user.uid);
     const unsubscribe = onSnapshot(characterRef, (snapshot) => {
       if (snapshot.exists()) {
-        const charData = snapshot.data() as Character;
-        setCharacter(charData);
+        const charData = normalizeCharacterData(snapshot.data() as Character);
         
         if (charData.isDead) {
           setDeadCharacter(charData);
@@ -100,7 +111,7 @@ export default function App() {
   const saveCharacter = async (char: Character) => {
     if (!user) return;
     try {
-      await setDoc(doc(db, 'characters', user.uid), char);
+      await setDoc(doc(db, 'characters', user.uid), normalizeCharacterData(char));
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `characters/${user.uid}`);
     }

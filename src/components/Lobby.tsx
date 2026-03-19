@@ -21,7 +21,12 @@ export default function Lobby({ character, onExplore, onAbandon, onLogout, onOpe
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'adventures' | 'inventory'>('adventures');
   const totalStats = getTotalStats(character);
-  const expPercent = (character.exp / character.nextLevelExp) * 100;
+  const expPercent = (() => {
+    if (!Number.isFinite(character.exp) || !Number.isFinite(character.nextLevelExp) || character.nextLevelExp <= 0) {
+      return 0;
+    }
+    return Math.min(100, Math.max(0, (character.exp / character.nextLevelExp) * 100));
+  })();
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 flex flex-col items-center font-sans">

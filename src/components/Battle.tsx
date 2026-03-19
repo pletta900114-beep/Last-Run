@@ -22,6 +22,11 @@ export default function Battle({ player, monster, onFinish, onAbandon }: BattleP
   const { t } = useLanguage();
   const playerTotalStats = getTotalStats(player);
   
+  const toPercent = (value: number, max: number) => {
+    if (!Number.isFinite(value) || !Number.isFinite(max) || max <= 0) return 0;
+    return Math.min(100, Math.max(0, (value / max) * 100));
+  };
+
   const [battleState, setBattleState] = useState<BattleState>({
     player: { 
       ...player, 
@@ -361,9 +366,9 @@ export default function Battle({ player, monster, onFinish, onAbandon }: BattleP
     }
   }, [battleState.turn, battleState.isFinished]);
 
-  const playerHpPercent = (battleState.player.stats.hp / battleState.player.stats.maxHp) * 100;
-  const playerMpPercent = (battleState.player.stats.mp / battleState.player.stats.maxMp) * 100;
-  const monsterHpPercent = (battleState.monster.stats.hp / battleState.monster.stats.maxHp) * 100;
+  const playerHpPercent = toPercent(battleState.player.stats.hp, battleState.player.stats.maxHp);
+  const playerMpPercent = toPercent(battleState.player.stats.mp, battleState.player.stats.maxMp);
+  const monsterHpPercent = toPercent(battleState.monster.stats.hp, battleState.monster.stats.maxHp);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 flex flex-col items-center justify-center font-sans">
